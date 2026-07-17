@@ -23,9 +23,9 @@ export function ImovelCard({
   const router = useRouter();
   const [excluindo, setExcluindo] = useState(false);
 
-  const capa = [...(imovel.midias ?? [])]
-    .filter((m) => m.tipo === "imagem")
-    .sort((a, b) => a.ordem - b.ordem)[0];
+  const midiasOrdenadas = [...(imovel.midias ?? [])].sort((a, b) => a.ordem - b.ordem);
+  const capa =
+    midiasOrdenadas.find((m) => m.tipo === "imagem") ?? midiasOrdenadas[0] ?? null;
 
   const disponivel = imovel.status === "disponivel";
 
@@ -51,13 +51,24 @@ export function ImovelCard({
     <div className="overflow-hidden rounded-lg border border-neutral-200 bg-white shadow-sm dark:border-neutral-800 dark:bg-neutral-950">
       <div className="relative aspect-[16/10] w-full bg-neutral-100 dark:bg-neutral-900">
         {capa ? (
-          <Image
-            src={capa.url}
-            alt={imovel.titulo}
-            fill
-            sizes="(min-width: 1024px) 25vw, (min-width: 640px) 50vw, 100vw"
-            className="object-cover"
-          />
+          capa.tipo === "video" ? (
+            <video
+              src={capa.url}
+              className="h-full w-full object-cover"
+              autoPlay
+              muted
+              loop
+              playsInline
+            />
+          ) : (
+            <Image
+              src={capa.url}
+              alt={imovel.titulo}
+              fill
+              sizes="(min-width: 1024px) 25vw, (min-width: 640px) 50vw, 100vw"
+              className="object-cover"
+            />
+          )
         ) : (
           <div className="flex h-full w-full items-center justify-center text-4xl text-neutral-300 dark:text-neutral-700">
             🏠

@@ -19,6 +19,9 @@ import {
   buscarEnderecoPorCep,
   formatarCep,
   formatarLocalizacaoDoEndereco,
+  geocodificarEndereco,
+  linkGoogleMaps,
+  type Coordenadas,
 } from "@/lib/viacep";
 import type { Tables } from "@/lib/supabase-db/types";
 
@@ -78,6 +81,8 @@ export function ImovelForm({
   const [cep, setCep] = useState("");
   const [buscandoCep, setBuscandoCep] = useState(false);
   const [erroCep, setErroCep] = useState<string | null>(null);
+  const [coordenadas, setCoordenadas] = useState<Coordenadas | null>(null);
+  const [buscandoCoordenadas, setBuscandoCoordenadas] = useState(false);
   const [mostrarPreview, setMostrarPreview] = useState(false);
 
   const [salvando, setSalvando] = useState(false);
@@ -175,6 +180,7 @@ export function ImovelForm({
 
     setBuscandoCep(true);
     setErroCep(null);
+    setCoordenadas(null);
     try {
       const endereco = await buscarEnderecoPorCep(digits);
       if (!endereco) {
@@ -182,6 +188,13 @@ export function ImovelForm({
         return;
       }
       setLocalizacao(formatarLocalizacaoDoEndereco(endereco));
+
+      // Não bloqueia a liberação do campo CEP: a geocodificação roda à
+      // parte, só pra mostrar a coordenada assim que chegar.
+      setBuscandoCoordenadas(true);
+      geocodificarEndereco(endereco)
+        .then(setCoordenadas)
+        .finally(() => setBuscandoCoordenadas(false));
     } catch {
       setErroCep("Não foi possível buscar o CEP agora. Preencha manualmente.");
     } finally {
@@ -582,7 +595,10 @@ export function ImovelForm({
             </label>
             <input
               value={localizacao}
-              onChange={(e) => setLocalizacao(e.target.value)}
+              onChange={(e) => {
+                setLocalizacao(e.target.value);
+                setCoordenadas(null);
+              }}
               placeholder="Bairro, Cidade - UF"
               className="w-full rounded border border-neutral-300 px-3 py-2 text-base dark:border-neutral-700 dark:bg-neutral-900"
             />
@@ -591,6 +607,22 @@ export function ImovelForm({
               você pode editar livremente).
             </p>
             {erroCep && <p className="mt-1 text-xs text-red-600">{erroCep}</p>}
+            {buscandoCoordenadas && (
+              <p className="mt-1 text-xs text-neutral-500">Buscando coordenadas...</p>
+            )}
+            {coordenadas && (
+              <p className="mt-1 text-xs text-neutral-500">
+                📍{" "}
+                <a
+                  href={linkGoogleMaps(coordenadas)}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="underline hover:text-neutral-800 dark:hover:text-neutral-200"
+                >
+                  {coordenadas.lat.toFixed(5)}, {coordenadas.lon.toFixed(5)} — Ver no mapa
+                </a>
+              </p>
+            )}
           </div>
 
           {status === "ocupada" && (
