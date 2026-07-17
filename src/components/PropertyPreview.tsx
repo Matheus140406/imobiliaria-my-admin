@@ -74,7 +74,7 @@ export function PropertyPreview({
         )}
 
         <p className="mb-2 text-center text-xs uppercase tracking-widest text-neutral-400">
-          {disponivel ? "Disponível" : "Ocupada"}
+          {disponivel ? "Disponível" : "Indisponível"}
         </p>
 
         <h1 className="mb-4 text-center text-3xl font-normal leading-tight text-neutral-900 sm:text-4xl">

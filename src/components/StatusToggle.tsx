@@ -26,13 +26,13 @@ export function StatusToggle({
             disponivel ? "translate-x-0" : "translate-x-full"
           }`}
         >
-          {disponivel ? "Disponível" : "Ocupada"}
+          {disponivel ? "Disponível" : "Indisponível"}
         </span>
         <span className="flex-1 text-center text-sm font-semibold text-white">
           Disponível
         </span>
         <span className="flex-1 text-center text-sm font-semibold text-white">
-          Ocupada
+          Indisponível
         </span>
       </button>
     </div>

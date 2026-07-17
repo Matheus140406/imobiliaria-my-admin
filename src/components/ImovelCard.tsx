@@ -68,7 +68,7 @@ export function ImovelCard({
             disponivel ? "bg-green-500" : "bg-neutral-600"
           }`}
         >
-          {disponivel ? "Disponível" : "Ocupada"}
+          {disponivel ? "Disponível" : "Indisponível"}
         </span>
       </div>
 
