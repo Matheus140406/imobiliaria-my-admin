@@ -44,7 +44,9 @@ export type Database = {
       }
       imoveis: {
         Row: {
+          area_m2: number | null
           atualizado_em: string
+          banheiros: number | null
           corretor_id: string
           criado_em: string
           data_venda: string | null
@@ -53,12 +55,16 @@ export type Database = {
           id: string
           localizacao: string | null
           preco: number | null
+          quartos: number | null
           slug: string
           status: string
           titulo: string
+          vagas: number | null
         }
         Insert: {
+          area_m2?: number | null
           atualizado_em?: string
+          banheiros?: number | null
           corretor_id: string
           criado_em?: string
           data_venda?: string | null
@@ -67,12 +73,16 @@ export type Database = {
           id?: string
           localizacao?: string | null
           preco?: number | null
+          quartos?: number | null
           slug: string
           status?: string
           titulo: string
+          vagas?: number | null
         }
         Update: {
+          area_m2?: number | null
           atualizado_em?: string
+          banheiros?: number | null
           corretor_id?: string
           criado_em?: string
           data_venda?: string | null
@@ -81,9 +91,11 @@ export type Database = {
           id?: string
           localizacao?: string | null
           preco?: number | null
+          quartos?: number | null
           slug?: string
           status?: string
           titulo?: string
+          vagas?: number | null
         }
         Relationships: [
           {

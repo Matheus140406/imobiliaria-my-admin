@@ -112,10 +112,15 @@ function notificarMudancaFila() {
 export async function adicionarImovelPendente(
   payload: ImovelPendentePayload,
   arquivos: ArquivoPendente[],
+  idIdempotencia?: string,
 ): Promise<ImovelPendente> {
   const db = await abrirBanco();
   const registro: ImovelPendente = {
-    id: crypto.randomUUID(),
+    // Importante: se o formulário já gerou um id de idempotência (caso de
+    // fallback após uma tentativa online que falhou só na resposta), reusa
+    // o MESMO id aqui. Isso garante que, quando essa fila for sincronizada,
+    // o upsert caia na mesma linha em vez de criar um imóvel duplicado.
+    id: idIdempotencia ?? crypto.randomUUID(),
     payload,
     arquivos,
     criadoEm: Date.now(),

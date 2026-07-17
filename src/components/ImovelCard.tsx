@@ -6,7 +6,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase-db/client";
 import type { Tables } from "@/lib/supabase-db/types";
-import { formatPreco } from "@/lib/format";
+import { formatPreco, formatDataPublicacao } from "@/lib/format";
 
 type ImovelComRelacoes = Tables<"imoveis"> & {
   corretor: { nome: string } | null;
@@ -82,11 +82,26 @@ export function ImovelCard({
         <p className="mt-1 text-base font-bold text-neutral-900 dark:text-white">
           {formatPreco(imovel.preco)}
         </p>
+        {(imovel.quartos || imovel.banheiros || imovel.vagas || imovel.area_m2) && (
+          <p className="mt-0.5 text-xs text-neutral-500">
+            {[
+              imovel.quartos ? `${imovel.quartos} qt` : null,
+              imovel.banheiros ? `${imovel.banheiros} ban` : null,
+              imovel.vagas ? `${imovel.vagas} vg` : null,
+              imovel.area_m2 ? `${imovel.area_m2}m²` : null,
+            ]
+              .filter(Boolean)
+              .join(" · ")}
+          </p>
+        )}
         {mostrarCorretor && (
           <p className="mt-0.5 text-xs text-neutral-500">
             Corretor: {imovel.corretor?.nome ?? "-"}
           </p>
         )}
+        <p className="mt-1 text-[11px] text-neutral-400">
+          Publicado {formatDataPublicacao(imovel.criado_em).toLowerCase()}
+        </p>
 
         <div className="mt-2 flex gap-1.5">
           <Link

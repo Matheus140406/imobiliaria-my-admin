@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase-db/client";
@@ -57,9 +57,23 @@ export function ImovelForm({
   const [corretorId, setCorretorId] = useState(
     imovel?.corretor_id ?? corretorAtual.id,
   );
+  const [quartos, setQuartos] = useState(imovel?.quartos?.toString() ?? "");
+  const [banheiros, setBanheiros] = useState(
+    imovel?.banheiros?.toString() ?? "",
+  );
+  const [vagas, setVagas] = useState(imovel?.vagas?.toString() ?? "");
+  const [areaM2, setAreaM2] = useState(imovel?.area_m2?.toString() ?? "");
   const [arquivos, setArquivos] = useState<File[]>([]);
   const [mostrarAvancado, setMostrarAvancado] = useState(
-    Boolean(imovel?.preco || imovel?.localizacao || imovel?.data_venda),
+    Boolean(
+      imovel?.preco ||
+        imovel?.localizacao ||
+        imovel?.data_venda ||
+        imovel?.quartos ||
+        imovel?.banheiros ||
+        imovel?.vagas ||
+        imovel?.area_m2,
+    ),
   );
   const [cep, setCep] = useState("");
   const [buscandoCep, setBuscandoCep] = useState(false);
@@ -70,6 +84,21 @@ export function ImovelForm({
   const [etapa, setEtapa] = useState<string | null>(null);
   const [erro, setErro] = useState<string | null>(null);
   const [offlineQueued, setOfflineQueued] = useState(false);
+
+  // Id de idempotência: gerado UMA vez por formulário de criação e reusado
+  // em toda tentativa de salvar (online, retry após erro, ou fallback para
+  // a fila offline). Isso é o que evita o imóvel duplicado: se a mesma
+  // criação for reenviada por qualquer caminho, ela sempre aponta pra essa
+  // mesma linha em vez de gerar uma nova.
+  const idIdempotenciaRef = useRef<string>(
+    typeof crypto !== "undefined" ? crypto.randomUUID() : "",
+  );
+  // Trava síncrona contra duplo-clique/duplo-toque: o `disabled={salvando}`
+  // do botão só reflete no DOM depois de um re-render do React, então dois
+  // cliques muito rápidos (comum no celular) podiam disparar duas chamadas
+  // de salvar em paralelo antes do botão desabilitar. Esse ref é atualizado
+  // na hora, sem esperar re-render.
+  const enviandoRef = useRef(false);
 
   const novasFotosUrls = useMemo<FotoPreview[]>(
     () =>
@@ -96,7 +125,11 @@ export function ImovelForm({
       descricao !== (imovel?.descricao ?? "") ||
       preco !== (imovel?.preco?.toString() ?? "") ||
       localizacao !== (imovel?.localizacao ?? "") ||
-      status !== (imovel?.status ?? "disponivel")
+      status !== (imovel?.status ?? "disponivel") ||
+      quartos !== (imovel?.quartos?.toString() ?? "") ||
+      banheiros !== (imovel?.banheiros?.toString() ?? "") ||
+      vagas !== (imovel?.vagas?.toString() ?? "") ||
+      areaM2 !== (imovel?.area_m2?.toString() ?? "")
     : titulo !== "" ||
       descricao !== "" ||
       preco !== "" ||
@@ -166,6 +199,10 @@ export function ImovelForm({
       status,
       data_venda: status === "ocupada" && dataVenda ? dataVenda : null,
       corretor_id: corretorId,
+      quartos: quartos ? Number(quartos) : null,
+      banheiros: banheiros ? Number(banheiros) : null,
+      vagas: vagas ? Number(vagas) : null,
+      area_m2: areaM2 ? Number(areaM2) : null,
     };
   }
 
@@ -180,6 +217,7 @@ export function ImovelForm({
     await adicionarImovelPendente(
       { ...payload, slug: gerarSlug(payload.titulo) },
       arquivosPendentes,
+      idIdempotenciaRef.current,
     );
 
     setEtapa(null);
@@ -196,9 +234,20 @@ export function ImovelForm({
     const supabase = createClient();
     try {
       setEtapa("Enviando...");
+      // upsert com id gerado no cliente: se essa mesma tentativa for
+      // reenviada (retry manual, ou fallback pra fila offline por causa de
+      // uma resposta perdida por rede instável), cai sempre na mesma linha
+      // — nunca cria um segundo imóvel.
       const { data, error } = await supabase
         .from("imoveis")
-        .insert({ ...payload, slug: gerarSlug(payload.titulo) })
+        .upsert(
+          {
+            id: idIdempotenciaRef.current,
+            ...payload,
+            slug: gerarSlug(payload.titulo),
+          },
+          { onConflict: "id" },
+        )
         .select()
         .single();
 
@@ -285,20 +334,27 @@ export function ImovelForm({
     e.preventDefault();
     setErro(null);
 
+    if (enviandoRef.current) return;
+
     const payload = montarPayload();
     if (!payload.titulo) {
       setErro("Descreva a casa para continuar.");
       return;
     }
 
+    enviandoRef.current = true;
     setSalvando(true);
 
-    if (editando) {
-      await editarImovelExistente(payload);
-      return;
-    }
+    try {
+      if (editando) {
+        await editarImovelExistente(payload);
+        return;
+      }
 
-    await criarNovoImovel(payload);
+      await criarNovoImovel(payload);
+    } finally {
+      enviandoRef.current = false;
+    }
   }
 
   function cadastrarOutro() {
@@ -455,6 +511,61 @@ export function ImovelForm({
                 onBlur={handleCepBlur}
                 inputMode="numeric"
                 placeholder="00000-000"
+                className="w-full rounded border border-neutral-300 px-3 py-2 text-base dark:border-neutral-700 dark:bg-neutral-900"
+              />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+            <div>
+              <label className="mb-1 block text-sm font-medium">
+                Quartos
+              </label>
+              <input
+                type="number"
+                min={0}
+                step={1}
+                value={quartos}
+                onChange={(e) => setQuartos(e.target.value)}
+                className="w-full rounded border border-neutral-300 px-3 py-2 text-base dark:border-neutral-700 dark:bg-neutral-900"
+              />
+            </div>
+            <div>
+              <label className="mb-1 block text-sm font-medium">
+                Banheiros
+              </label>
+              <input
+                type="number"
+                min={0}
+                step={1}
+                value={banheiros}
+                onChange={(e) => setBanheiros(e.target.value)}
+                className="w-full rounded border border-neutral-300 px-3 py-2 text-base dark:border-neutral-700 dark:bg-neutral-900"
+              />
+            </div>
+            <div>
+              <label className="mb-1 block text-sm font-medium">
+                Vagas
+              </label>
+              <input
+                type="number"
+                min={0}
+                step={1}
+                value={vagas}
+                onChange={(e) => setVagas(e.target.value)}
+                className="w-full rounded border border-neutral-300 px-3 py-2 text-base dark:border-neutral-700 dark:bg-neutral-900"
+              />
+            </div>
+            <div>
+              <label className="mb-1 block text-sm font-medium">
+                Área (m²)
+              </label>
+              <input
+                type="number"
+                min={0}
+                step="0.01"
+                value={areaM2}
+                onChange={(e) => setAreaM2(e.target.value)}
                 className="w-full rounded border border-neutral-300 px-3 py-2 text-base dark:border-neutral-700 dark:bg-neutral-900"
               />
             </div>

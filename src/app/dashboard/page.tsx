@@ -3,14 +3,41 @@ import { createClient } from "@/lib/supabase-db/server";
 import { getCorretorAtual } from "@/lib/auth";
 import { ImoveisCarousel } from "@/components/ImoveisCarousel";
 import { FiltroCorretor } from "@/components/FiltroCorretor";
+import { FiltroData, type PeriodoValor } from "@/components/FiltroData";
 import type { Tables } from "@/lib/supabase-db/types";
+
+function calcularDataInicial(periodo?: string): string | null {
+  const agora = new Date();
+  const inicioDoDia = new Date(
+    agora.getFullYear(),
+    agora.getMonth(),
+    agora.getDate(),
+  );
+
+  switch (periodo as PeriodoValor | undefined) {
+    case "7d": {
+      const data = new Date(inicioDoDia);
+      data.setDate(data.getDate() - 6);
+      return data.toISOString();
+    }
+    case "30d": {
+      const data = new Date(inicioDoDia);
+      data.setDate(data.getDate() - 29);
+      return data.toISOString();
+    }
+    case "mes":
+      return new Date(agora.getFullYear(), agora.getMonth(), 1).toISOString();
+    default:
+      return null;
+  }
+}
 
 export default async function DashboardPage({
   searchParams,
 }: {
-  searchParams: Promise<{ corretor?: string }>;
+  searchParams: Promise<{ corretor?: string; periodo?: string }>;
 }) {
-  const { corretor: corretorFiltro } = await searchParams;
+  const { corretor: corretorFiltro, periodo } = await searchParams;
   const corretorAtual = await getCorretorAtual();
   if (!corretorAtual) return null;
 
@@ -26,6 +53,11 @@ export default async function DashboardPage({
 
   if (isAdmin && corretorFiltro) {
     query = query.eq("corretor_id", corretorFiltro);
+  }
+
+  const dataInicial = calcularDataInicial(periodo);
+  if (dataInicial) {
+    query = query.gte("criado_em", dataInicial);
   }
 
   const { data: imoveis } = await query;
@@ -51,17 +83,18 @@ export default async function DashboardPage({
         </Link>
       </div>
 
-      {isAdmin && (
-        <div className="mb-4">
+      <div className="mb-4 flex flex-wrap gap-2">
+        {isAdmin && (
           <FiltroCorretor corretores={corretores} valorAtual={corretorFiltro} />
-        </div>
-      )}
+        )}
+        <FiltroData valorAtual={periodo} />
+      </div>
 
       <ImoveisCarousel imoveis={imoveis ?? []} mostrarCorretor={isAdmin} />
 
       {(imoveis ?? []).length === 0 && (
         <p className="py-8 text-center text-neutral-500">
-          Nenhum imóvel cadastrado.
+          Nenhum imóvel encontrado para esse filtro.
         </p>
       )}
     </div>

@@ -45,6 +45,12 @@ export default function LoginPage() {
       email,
       options: {
         emailRedirectTo: `${window.location.origin}/auth/callback`,
+        // Importante: sem isso, QUALQUER e-mail digitado aqui cria um novo
+        // usuário no Supabase Auth (mesmo que não seja um corretor
+        // cadastrado). Isso permitia gerar contas à toa e mandar e-mail
+        // pra qualquer endereço só preenchendo esse campo. Só quem já tem
+        // linha em "corretores" deve conseguir entrar.
+        shouldCreateUser: false,
       },
     });
 

@@ -42,9 +42,15 @@ export async function sincronizarImoveisPendentes(): Promise<ResultadoSync> {
       const supabase = createClient();
 
       const slug = item.payload.slug || gerarSlug(item.payload.titulo);
+      // upsert (não insert): "item.id" é o mesmo id gerado quando o item
+      // entrou na fila (e, se veio de um fallback pós-erro de rede, é o
+      // MESMO id já usado na tentativa online). Se essa sincronização for
+      // reprocessada (ex: sync disparado duas vezes, ou o imóvel já tinha
+      // sido criado e só a resposta se perdeu), isso atualiza a mesma linha
+      // em vez de criar um imóvel duplicado.
       const { data: imovel, error } = await supabase
         .from("imoveis")
-        .insert({ ...item.payload, slug })
+        .upsert({ id: item.id, ...item.payload, slug }, { onConflict: "id" })
         .select()
         .single();
 
